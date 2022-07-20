@@ -25,5 +25,5 @@ In any Blender document, make sure you have the animation you wish to export act
 
 This is my first Blender addon, so please be gentle. Known issues:
 
-* Due to the way VTL stores vertices (as signed 16-bit integers, by doing `float * 16`) very small objects or very large ones will
+* Due to the way VTL stores vertices (as signed 16-bit integers, by doing `float * 16`) very small objects or very large ones will likely cause issues.
 * Likely much more ;)
