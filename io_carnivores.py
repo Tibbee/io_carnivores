@@ -86,12 +86,12 @@ def export_3df(context, filepath, obj, mat):
                 mesh.loops[v1].vertex_index,
                 mesh.loops[v2].vertex_index,
                 mesh.loops[v3].vertex_index,
-                int(uv_layer[v1].uv.x * 255),
-                int(uv_layer[v2].uv.x * 255),
-                int(uv_layer[v3].uv.x * 255),
-                int(uv_layer[v1].uv.y * 255),
-                int(uv_layer[v2].uv.y * 255),
-                int(uv_layer[v3].uv.y * 255),
+                int(uv_layer[v1].uv.x * 256),
+                int(uv_layer[v2].uv.x * 256),
+                int(uv_layer[v3].uv.x * 256),
+                int(uv_layer[v1].uv.y * 256),
+                int(uv_layer[v2].uv.y * 256),
+                int(uv_layer[v3].uv.y * 256),
                 0, # flags
                 0, # dmask
                 0, # distant
