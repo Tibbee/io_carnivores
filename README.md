@@ -16,6 +16,7 @@ Simply go to Edit/Preferences/Addons, click Install, and select `io_carnivores.p
 ## Exporting 3DF
 
 In any Blender document, select the mesh you wish to export as 3DF model, and select File/Export/3DF. Specify the file to be written and any configuration options.
+Since 3DF uses integer UV coordinates (matching with the size of the texture), with a maximum texture size of 256x256, the script currently generates UVs that assume the use of a 256x256 texture.
 
 ## Exporting VLT
 
@@ -25,5 +26,6 @@ In any Blender document, make sure you have the animation you wish to export act
 
 This is my first Blender addon, so please be gentle. Known issues:
 
+* UV coordinate conversion assumes 256x256 texture.
 * Due to the way VTL stores vertices (as signed 16-bit integers, by doing `float * 16`) very small objects or very large ones will likely cause issues.
 * Likely much more ;)
