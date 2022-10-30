@@ -4,7 +4,7 @@ import struct
 bl_info = {
     "name": "Carnivores Model/Animation Export (3DF,VTL)",
     "author": "Ithamar R. Adema",
-    "version": (1, 0, 2),
+    "version": (1, 0, 3),
     "blender": (2, 82, 0),
     "description": "Export plugin for classic Carnivores formats 3DF (base model), VTL (animations)",
     "category": "Import-Export",
@@ -61,14 +61,13 @@ def export_3df(context, filepath, obj, mat):
     # UV layer
     uv_layer = mesh.uv_layers.active.data
 
-    face_count = len(mesh.polygons)
-
     f = open(filepath, 'wb')
 
     # Write Header
-    f.write(struct.pack("<LLLL", len(mesh.vertices), face_count, 1, 0)) # bones, texturesize
+    f.write(struct.pack("<LLLL", len(mesh.vertices), len(mesh.polygons), 1, 0)) # bones, texturesize
 
     # Write faces
+    face_count = 0
     for poly in mesh.polygons:
         # Start of poly loop
         start = poly.loop_start
@@ -99,6 +98,7 @@ def export_3df(context, filepath, obj, mat):
                 0, # group
                 )
             )
+            face_count += 1
 
     # Write Vertices
     for v in mesh.vertices:
@@ -106,6 +106,11 @@ def export_3df(context, filepath, obj, mat):
 
     # Write default bone
     f.write(struct.pack("<32sfffhH", b'default', 0, 0, 0, -1, 0)) # x,y,z, parent, hidden
+
+    # Optionally fix up face count in header, due to quad/n-gon conversion
+    if face_count != len(mesh.polygons):
+        f.seek(4)
+        f.write(struct.pack("<L", face_count))
 
     f.close()
 
