@@ -4,6 +4,9 @@ I'm storing links and code snippets here related to Blender scripting, to save m
 
 # TODO
 
+- 3DF import:
+    - Figure out bone head/tail setup
+
 ## Export multiple objects
 
 Allow multiple meshes to be exported, and create a dummy bone per mesh. This is so every "sub mesh" can get its own collision in-game.
