@@ -1,6 +1,6 @@
 # Carnivores Export Addon for Blender
 
-This addon is supports exporting Blender models and animations into 3DF / VTL files. 
+This addon is supports exporting Blender models and animations into 3DF / VTL files, and importing CAR/3DF files too.
 
 3DF export simply exports the basic geometry (vertices,faces,active uvlayer) into the 3DF format. Material export is currently not supported.
 VTL export basically plays the active scene animation, and captures the vertices of the mesh for every frame in the animation, and writes that to VTL.
@@ -12,6 +12,19 @@ To create CAR files out of the 3DF and VTL files, you'll have to use either [CMM
 ## Install
 
 Simply go to Edit/Preferences/Addons, click Install, and select `io_carnivores.py`. You should see the addon in the addon list, click the checkbox in front of its name to enable, and you should be good to go.
+
+## Update
+
+Follow the install instructions, but make sure to disable/enable the addon to make sure the newer version is active.
+
+## Importing 3DF/CAR
+
+Simply go to File/Import/3DF/CAR, and select the file you wish to import. Import has the following features:
+
+- 3DF: geometry, uv mapping, texture, and rigging (bones / vertex groups).
+- CAR: geometry, uv mapping, texture, animations (imported as shape keys), and vertex groups. Bones are not stored in the CAR format, so unfortunately, those are missing.
+
+Please note that import is a new feature, and still beta. any feedback on bugs, or suggestions for features related to this are welcome.
 
 ## Exporting 3DF
 
