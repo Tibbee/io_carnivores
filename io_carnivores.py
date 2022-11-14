@@ -5,7 +5,7 @@ import struct
 bl_info = {
     "name": "Carnivores Model/Animation Import/Export (3DF,VTL)",
     "author": "Ithamar R. Adema",
-    "version": (1, 1, 0),
+    "version": (1, 1, 1),
     "blender": (2, 82, 0),
     "description": "Import/Export plugin for classic Carnivores formats 3DF (base model), VTL (animations)",
     "category": "Import-Export",
