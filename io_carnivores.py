@@ -307,7 +307,7 @@ def read_texture(texture_size, data, offset):
         height = 256
 
     image = None
-    if texture_size > 0:
+    if texture_size > 0 and offset + texture_size <= len(data):
         image = bpy.data.images.new('src', 256, height)
         p = [0.0] * 256 * height * 4
         # convert BGR5551 to RGBA
@@ -338,7 +338,7 @@ def import_car(data, matrix):
     height, image = read_texture(texture_size, data, offset)
     offset += texture_size
     
-    vertgroups = [[] for s in range(64)]
+    vertgroups = [[] for s in range(256)]
 
     mverts = []
     for vidx in range(len(verts)):
@@ -447,7 +447,7 @@ def import_3df(data, name, mat):
     # Load texture
     height, image = read_texture(texture_size, data, offset)
     
-    vertgroups = [[] for s in range(64)]
+    vertgroups = [[] for s in range(256)]
 
     mverts = []
     for vidx in range(len(verts)):
