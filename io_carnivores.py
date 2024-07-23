@@ -3,11 +3,13 @@ import bpy
 import struct
 import bmesh
 import numpy as np
+import timeit
+import functools
 
 bl_info = {
     "name": "Carnivores Model/Animation Import/Export (3DF,VTL)",
     "author": "Ithamar R. Adema, Strider",
-    "version": (1, 2, 0),
+    "version": (1, 4, 0),
     "blender": (2, 82, 0),
     "description": "Import/Export plugin for classic Carnivores formats 3DF (base model), VTL (animations)",
     "category": "Import-Export",
@@ -17,6 +19,22 @@ bl_info = {
 # Export
 # -----------------------------------------------------------------------------
 
+# Create a timeit decorator to measure performance of functions
+def time_it(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        def timed_function():
+            return func(*args, **kwargs)
+        
+        # Measure the execution time using timeit
+        execution_time = timeit.timeit(timed_function, number=1)
+        print(f"Function '{func.__name__}' execution time: {execution_time} seconds")
+        
+        # Call the original function and return its result
+        return func(*args, **kwargs)
+    
+    return wrapper
+    
 def add_custom_properties():
     bpy.types.Scene.face_double_side = bpy.props.BoolProperty(name="Double Side")
     bpy.types.Scene.face_dark_back = bpy.props.BoolProperty(name="Dark Back")
@@ -27,7 +45,7 @@ def add_custom_properties():
     bpy.types.Scene.face_env_map = bpy.props.BoolProperty(name="Env Map")
     bpy.types.Scene.face_need_vc = bpy.props.BoolProperty(name="Need VC")
     bpy.types.Scene.face_dark = bpy.props.BoolProperty(name="Dark")
-
+    
 def remove_custom_properties():
     del bpy.types.Scene.face_double_side
     del bpy.types.Scene.face_dark_back
@@ -191,26 +209,8 @@ class ApplyFaceProperties(bpy.types.Operator):
             context.scene.face_dark
         )
         return {'FINISHED'}
-
-
-def get_flags(mesh, face_index):
-    # Create a bmesh from the mesh to access custom layers
-    bm = bmesh.new()
-    bm.from_mesh(mesh)
-
-    bm.faces.ensure_lookup_table()
-    
-    # Access custom properties layers
-    double_side_layer = bm.faces.layers.int.get("DoubleSide")
-    dark_back_layer = bm.faces.layers.int.get("DarkBack")
-    opacity_layer = bm.faces.layers.int.get("Opacity")
-    transparent_layer = bm.faces.layers.int.get("Transparent")
-    mortal_layer = bm.faces.layers.int.get("Mortal")
-    phong_layer = bm.faces.layers.int.get("Phong")
-    env_map_layer = bm.faces.layers.int.get("EnvMap")
-    need_vc_layer = bm.faces.layers.int.get("NeedVC")
-    dark_layer = bm.faces.layers.int.get("Dark")
-
+        
+def get_flags(bm, face_index, layers):
     # Initialize flags
     flags = 0
 
@@ -218,28 +218,40 @@ def get_flags(mesh, face_index):
     face = bm.faces[face_index]
 
     # Set flags based on custom properties
-    if double_side_layer and face[double_side_layer]:
+    if layers['double_side_layer'] and face[layers['double_side_layer']]:
         flags |= (1 << 0)  # Bit 0
-    if dark_back_layer and face[dark_back_layer]:
+    if layers['dark_back_layer'] and face[layers['dark_back_layer']]:
         flags |= (1 << 1)  # Bit 1
-    if opacity_layer and face[opacity_layer]:
+    if layers['opacity_layer'] and face[layers['opacity_layer']]:
         flags |= (1 << 2)  # Bit 2
-    if transparent_layer and face[transparent_layer]:
+    if layers['transparent_layer'] and face[layers['transparent_layer']]:
         flags |= (1 << 3)  # Bit 3
-    if mortal_layer and face[mortal_layer]:
+    if layers['mortal_layer'] and face[layers['mortal_layer']]:
         flags |= (1 << 4)  # Bit 4
-    if phong_layer and face[phong_layer]:
+    if layers['phong_layer'] and face[layers['phong_layer']]:
         flags |= (1 << 5)  # Bit 5
-    if env_map_layer and face[env_map_layer]:
+    if layers['env_map_layer'] and face[layers['env_map_layer']]:
         flags |= (1 << 6)  # Bit 6
-    if need_vc_layer and face[need_vc_layer]:
+    if layers['need_vc_layer'] and face[layers['need_vc_layer']]:
         flags |= (1 << 7)  # Bit 7
-    if dark_layer and face[dark_layer]:
+    if layers['dark_layer'] and face[layers['dark_layer']]:
         flags |= (1 << 8)  # Bit 8
 
-    bm.free()  # Free the bmesh
-
     return flags
+
+def prefetch_layers(bm):
+    layers = {
+        'double_side_layer': bm.faces.layers.int.get("DoubleSide"),
+        'dark_back_layer': bm.faces.layers.int.get("DarkBack"),
+        'opacity_layer': bm.faces.layers.int.get("Opacity"),
+        'transparent_layer': bm.faces.layers.int.get("Transparent"),
+        'mortal_layer': bm.faces.layers.int.get("Mortal"),
+        'phong_layer': bm.faces.layers.int.get("Phong"),
+        'env_map_layer': bm.faces.layers.int.get("EnvMap"),
+        'need_vc_layer': bm.faces.layers.int.get("NeedVC"),
+        'dark_layer': bm.faces.layers.int.get("Dark")
+    }
+    return layers
 
 
 def get_image_from_material(obj):
@@ -280,12 +292,12 @@ def convert_image_to_A1R5G5B5(image):
     a1_r5_g5_b5_pixels = np.zeros((height, width), dtype=np.uint16)
     for y in range(height):
         for x in range(width):
-            r = int(pixels[y, x, 0] * 31)  # Scale to 5-bit (0-31)
-            g = int(pixels[y, x, 1] * 31)  # Scale to 5-bit (0-31)
-            b = int(pixels[y, x, 2] * 31)  # Scale to 5-bit (0-31)
-            a = int(pixels[y, x, 3] * 0)  # Scale to 1-bit (0 or 1)
+            r = int(round(pixels[y, x, 0] * 31))  # Scale to 5-bit (0-31) with rounding
+            g = int(round(pixels[y, x, 1] * 31))  # Scale to 5-bit (0-31) with rounding
+            b = int(round(pixels[y, x, 2] * 31))  # Scale to 5-bit (0-31) with rounding
+            a = int(round(pixels[y, x, 3] * 0))  # Scale to 1-bit (0 or 1) with rounding
             a1_r5_g5_b5_pixels[y, x] = (a << 15) | (r << 10) | (g << 5) | b
-    
+
     # Calculate the image size in bytes
     size_in_bytes = width * height * 2
 
@@ -323,6 +335,11 @@ def prepare_export(context, operator):
             obj.to_mesh_clear()
             return None
 
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.quads_convert_to_tris(quad_method='FIXED', ngon_method='CLIP')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        
         obj.to_mesh_clear()
     else:
         operator.report({'ERROR'}, 'No model selected')
@@ -330,80 +347,94 @@ def prepare_export(context, operator):
 
     return obj
   
-
+@time_it
 def export_3df(context, filepath, obj, mat):
     depsgraph = context.evaluated_depsgraph_get()
-        
-    # get selected object and create mesh
+    
     obj_matrix = obj.matrix_world
     obj_for_convert = obj.evaluated_get(depsgraph)
     mesh = obj_for_convert.to_mesh()
 
-    # Transform mesh
+    # Apply the transformation matrix
     mesh.transform(mat @ obj_matrix)
 
-    # UV layer
+    # Get UV layer
     uv_layer = mesh.uv_layers.active.data
 
+    # Get image from material and convert
     image = get_image_from_material(obj)
     a1_r5_g5_b5_pixels, image_size = convert_image_to_A1R5G5B5(image)
 
-    f = open(filepath, 'wb')
-       
-    # Write Header
-    f.write(struct.pack("<LLLL", len(mesh.vertices), len(mesh.polygons), 1, image_size)) # bones, texturesize
-  
-    # Write faces
-    face_count = 0
-    for poly in mesh.polygons:
-        # Start of poly loop
-        start = poly.loop_start
-        count = poly.loop_total
+    image_height = image.size[1] if image else 256
 
-        # Do our own triangulation; doing it using Blender causes a disconnect between
-        # rig and mesh (deforming the object when playing the animation afterwards)
-        
-        v1 = start + 0
-        for j in range(1, count -1):
-            v2 = start + j
-            v3 = start + j + 1
+    with open(filepath, 'wb') as f:
+        # Write Header
+        f.write(struct.pack("<LLLL", len(mesh.vertices), len(mesh.polygons), 1, image_size)) # bones, texturesize
 
-            f.write(
-                struct.pack("<LLLLLLLLLHHLLLxxxxxxxxxxxx",
-                mesh.loops[v1].vertex_index,
-                mesh.loops[v2].vertex_index,
-                mesh.loops[v3].vertex_index,
-                int(uv_layer[v1].uv.x * 256),
-                int(uv_layer[v2].uv.x * 256),
-                int(uv_layer[v3].uv.x * 256),
-                int(uv_layer[v1].uv.y * 256),
-                int(uv_layer[v2].uv.y * 256),
-                int(uv_layer[v3].uv.y * 256),
-                get_flags(mesh, poly.index), # flags
-                0, # dmask
-                0, # distant
-                0, # next
-                0, # group
+        # Create a bmesh and prefetch custom layers
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+        bm.faces.ensure_lookup_table()
+        layers = prefetch_layers(bm)
+
+        # Write faces
+        face_count = 0
+        for poly in mesh.polygons:
+            # Triangulation should have already split this into triangles
+            start = poly.loop_start
+            count = poly.loop_total
+
+            # Only handle triangles, which should be the case now
+            if count == 3:
+                v1 = start
+                v2 = start + 1
+                v3 = start + 2
+
+                uv1_x = round(uv_layer[v1].uv.x * 256)
+                uv1_y = round(uv_layer[v1].uv.y * image_height)
+                uv2_x = round(uv_layer[v2].uv.x * 256)
+                uv2_y = round(uv_layer[v2].uv.y * image_height)
+                uv3_x = round(uv_layer[v3].uv.x * 256)
+                uv3_y = round(uv_layer[v3].uv.y * image_height)
+
+                f.write(
+                    struct.pack("<LLLLLLLLLHHLLLxxxxxxxxxxxx",
+                    mesh.loops[v1].vertex_index,
+                    mesh.loops[v2].vertex_index,
+                    mesh.loops[v3].vertex_index,
+                    uv1_x,
+                    uv2_x,
+                    uv3_x,
+                    uv1_y,
+                    uv2_y,
+                    uv3_y,
+                    get_flags(bm, poly.index, layers), # use optimized get_flags
+                    0, # dmask
+                    0, # distant
+                    0, # next
+                    0, # group
+                    )
                 )
-            )
-            face_count += 1
+                face_count += 1
 
-    # Write Vertices
-    for v in mesh.vertices:
-        f.write(struct.pack("<fffHH", v.co.x, v.co.y, v.co.z, 0, 0)) # bone and hide
+        # Free the bmesh after use
+        bm.free()
 
-    # Write default bone
-    f.write(struct.pack("<32sfffhH", b'default', 0, 0, 0, -1, 0)) # x,y,z, parent, hidden
-    
-    if a1_r5_g5_b5_pixels is not None:
-        f.write(a1_r5_g5_b5_pixels.tobytes())
-    
-    # Optionally fix up face count in header, due to quad/n-gon conversion
-    if face_count != len(mesh.polygons):
-        f.seek(4)
-        f.write(struct.pack("<L", face_count))
+        # Write Vertices
+        for v in mesh.vertices:
+            f.write(struct.pack("<fffHH", v.co.x, v.co.y, v.co.z, 0, 0)) # bone and hide
 
-    f.close()
+        # Write default bone
+        f.write(struct.pack("<32sfffhH", b'default', 0, 0, 0, -1, 0)) # x,y,z, parent, hidden
+
+        # Write texture data if available
+        if a1_r5_g5_b5_pixels is not None:
+            f.write(a1_r5_g5_b5_pixels.tobytes())
+
+        # Optionally fix up face count in header
+        if face_count != len(mesh.polygons):
+            f.seek(4)
+            f.write(struct.pack("<L", face_count))
 
     return {'FINISHED'}
     
@@ -638,9 +669,9 @@ def import_car(data, matrix):
     muvs = []
     for f in faces:
         mfaces.append([ f[0], f[1], f[2] ])
-        muvs.append([ f[3] / 255, f[6] / (height-1) ])
-        muvs.append([ f[4] / 255, f[7] / (height-1) ])
-        muvs.append([ f[5] / 255, f[8] / (height-1) ])
+        muvs.append([f[3] / 256.0, f[6] / float(height)])
+        muvs.append([f[4] / 256.0, f[7] / float(height)])
+        muvs.append([f[5] / 256.0, f[8] / float(height)])
 
     mesh_data = bpy.data.meshes.new(name + '_Mesh')
     mesh_data.from_pydata(mverts, [], mfaces)
@@ -747,9 +778,10 @@ def import_3df(data, name, mat):
     muvs = []
     for f in faces:
         mfaces.append([ f[0], f[1], f[2] ])
-        muvs.append([ f[3] / 255, f[6] / (height-1) ])
-        muvs.append([ f[4] / 255, f[7] / (height-1) ])
-        muvs.append([ f[5] / 255, f[8] / (height-1) ])
+        # Ensure consistent UV normalization
+        muvs.append([f[3] / 256.0, f[6] / float(height)])
+        muvs.append([f[4] / 256.0, f[7] / float(height)])
+        muvs.append([f[5] / 256.0, f[8] / float(height)])
 
     mesh_data = bpy.data.meshes.new(name + '_Mesh')
     mesh_data.from_pydata(mverts, [], mfaces)
