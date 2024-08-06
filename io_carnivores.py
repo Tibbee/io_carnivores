@@ -9,7 +9,7 @@ import functools
 bl_info = {
     "name": "Carnivores Model/Animation Import/Export (3DF,VTL)",
     "author": "Ithamar R. Adema, Strider",
-    "version": (1, 4, 0),
+    "version": (1, 4, 5),
     "blender": (2, 82, 0),
     "description": "Import/Export plugin for classic Carnivores formats 3DF (base model), VTL (animations)",
     "category": "Import-Export",
@@ -35,118 +35,118 @@ def time_it(func):
     
     return wrapper
     
+def create_bool_properties(properties):
+    for prop_name, prop_label in properties:
+        setattr(bpy.types.Mesh, prop_name, bpy.props.BoolProperty(name=prop_label))
+
+def delete_bool_properties(properties):
+    for prop_name in properties:
+        delattr(bpy.types.Mesh, prop_name)
+
 def add_custom_properties():
-    bpy.types.Scene.face_double_side = bpy.props.BoolProperty(name="Double Side")
-    bpy.types.Scene.face_dark_back = bpy.props.BoolProperty(name="Dark Back")
-    bpy.types.Scene.face_opacity = bpy.props.BoolProperty(name="Opacity")
-    bpy.types.Scene.face_transparent = bpy.props.BoolProperty(name="Transparent")
-    bpy.types.Scene.face_mortal = bpy.props.BoolProperty(name="Mortal")
-    bpy.types.Scene.face_phong = bpy.props.BoolProperty(name="Phong")
-    bpy.types.Scene.face_env_map = bpy.props.BoolProperty(name="Env Map")
-    bpy.types.Scene.face_need_vc = bpy.props.BoolProperty(name="Need VC")
-    bpy.types.Scene.face_dark = bpy.props.BoolProperty(name="Dark")
-    
+    properties = [
+        ("face_double_side", "Double Side"),
+        ("face_dark_back", "Dark Back"),
+        ("face_opacity", "Opacity"),
+        ("face_transparent", "Transparent"),
+        ("face_mortal", "Mortal"),
+        ("face_phong", "Phong"),
+        ("face_env_map", "Env Map"),
+        ("face_need_vc", "Need VC"),
+        ("face_dark", "Dark"),
+    ]
+    create_bool_properties(properties)
+
 def remove_custom_properties():
-    del bpy.types.Scene.face_double_side
-    del bpy.types.Scene.face_dark_back
-    del bpy.types.Scene.face_opacity
-    del bpy.types.Scene.face_transparent
-    del bpy.types.Scene.face_mortal
-    del bpy.types.Scene.face_phong
-    del bpy.types.Scene.face_env_map
-    del bpy.types.Scene.face_need_vc
-    del bpy.types.Scene.face_dark
+    properties = [
+        "face_double_side",
+        "face_dark_back",
+        "face_opacity",
+        "face_transparent",
+        "face_mortal",
+        "face_phong",
+        "face_env_map",
+        "face_need_vc",
+        "face_dark",
+    ]
+    delete_bool_properties(properties)
+
+def ensure_custom_layers(bm):
+    layers = bm.faces.layers.int
+    required_layers = ["DoubleSide", "DarkBack", "Opacity", "Transparent", "Mortal", "Phong", "EnvMap", "NeedVC", "Dark"]
+    for name in required_layers:
+        if name not in layers:
+            layers.new(name)
+    return layers
 
 def set_custom_properties(context, double_side, dark_back, opacity, transparent, mortal, phong, env_map, need_vc, dark):
     obj = context.active_object
-    if obj.mode == 'EDIT' and obj.type == 'MESH':
-        bm = bmesh.from_edit_mesh(obj.data)
-
-        # Ensure custom layers exist
-        layers = bm.faces.layers.int
-        if "DoubleSide" not in layers:
-            layers.new("DoubleSide")
-        if "DarkBack" not in layers:
-            layers.new("DarkBack")
-        if "Opacity" not in layers:
-            layers.new("Opacity")
-        if "Transparent" not in layers:
-            layers.new("Transparent")
-        if "Mortal" not in layers:
-            layers.new("Mortal")
-        if "Phong" not in layers:
-            layers.new("Phong")
-        if "EnvMap" not in layers:
-            layers.new("EnvMap")
-        if "NeedVC" not in layers:
-            layers.new("NeedVC")
-        if "Dark" not in layers:
-            layers.new("Dark")
-
-        # Get custom layers
-        double_side_layer = layers["DoubleSide"]
-        dark_back_layer = layers["DarkBack"]
-        opacity_layer = layers["Opacity"]
-        transparent_layer = layers["Transparent"]
-        mortal_layer = layers["Mortal"]
-        phong_layer = layers["Phong"]
-        env_map_layer = layers["EnvMap"]
-        need_vc_layer = layers["NeedVC"]
-        dark_layer = layers["Dark"]
-
-        # Set properties on selected faces
-        for face in bm.faces:
-            if face.select:
-                face[double_side_layer] = int(double_side)
-                face[dark_back_layer] = int(dark_back)
-                face[opacity_layer] = int(opacity)
-                face[transparent_layer] = int(transparent)
-                face[mortal_layer] = int(mortal)
-                face[phong_layer] = int(phong)
-                face[env_map_layer] = int(env_map)
-                face[need_vc_layer] = int(need_vc)
-                face[dark_layer] = int(dark)
-            
-
-        bmesh.update_edit_mesh(obj.data)
-    else:
+    
+    # Check if the object is in 'EDIT' mode and is a 'MESH'
+    if obj.mode != 'EDIT' or obj.type != 'MESH':
         print("No mesh selected or not in edit mode")
+        return
+
+    # Get the BMesh representation of the mesh
+    bm = bmesh.from_edit_mesh(obj.data)
+
+    # Ensure custom layers exist
+    layers = ensure_custom_layers(bm)
+
+    # Define layer names and map them to layer instances
+    layer_names = ["DoubleSide", "DarkBack", "Opacity", "Transparent", "Mortal", "Phong", "EnvMap", "NeedVC", "Dark"]
+    layer_map = {name: layers[name] for name in layer_names}
+
+    # Prepare properties list for assignment
+    properties = {
+        "DoubleSide": int(double_side),
+        "DarkBack": int(dark_back),
+        "Opacity": int(opacity),
+        "Transparent": int(transparent),
+        "Mortal": int(mortal),
+        "Phong": int(phong),
+        "EnvMap": int(env_map),
+        "NeedVC": int(need_vc),
+        "Dark": int(dark),
+    }
+
+    # Apply properties to selected faces
+    for face in bm.faces:
+        if face.select:
+            for name in layer_names:
+                face[layer_map[name]] = properties[name]
+
+    # Update the BMesh to reflect changes in the mesh
+    bmesh.update_edit_mesh(obj.data)
 
 def get_custom_properties(context):
     obj = context.active_object
-    if obj.mode == 'EDIT' and obj.type == 'MESH':
-        bm = bmesh.from_edit_mesh(obj.data)
+    
+    # Ensure the object is in 'EDIT' mode and is a 'MESH'
+    if obj.mode != 'EDIT' or obj.type != 'MESH':
+        return None
 
-        # Ensure custom layers exist
-        layers = bm.faces.layers.int
-        double_side_layer = layers.get("DoubleSide")
-        dark_back_layer = layers.get("DarkBack")
-        opacity_layer = layers.get("Opacity")
-        transparent_layer = layers.get("Transparent")
-        mortal_layer = layers.get("Mortal")
-        phong_layer = layers.get("Phong")
-        env_map_layer = layers.get("EnvMap")
-        need_vc_layer = layers.get("NeedVC")
-        dark_layer = layers.get("Dark")
+    # Get the BMesh representation of the mesh
+    bm = bmesh.from_edit_mesh(obj.data)
 
-        if not (double_side_layer and dark_back_layer and opacity_layer and transparent_layer and mortal_layer and phong_layer and env_map_layer and need_vc_layer and dark_layer):
-            return None
+    # Ensure custom layers exist
+    layers = bm.faces.layers.int
 
-        # Check properties on selected faces
-        for face in bm.faces:
-            if face.select:
-                return {
-                    "DoubleSide": bool(face[double_side_layer]),
-                    "DarkBack": bool(face[dark_back_layer]),
-                    "Opacity": bool(face[opacity_layer]),
-                    "Transparent": bool(face[transparent_layer]),
-                    "Mortal": bool(face[mortal_layer]),
-                    "Phong": bool(face[phong_layer]),
-                    "EnvMap": bool(face[env_map_layer]),
-                    "NeedVC": bool(face[need_vc_layer]),
-                    "Dark": bool(face[dark_layer]),
-                }
-    return None
+    # Define layer names and map them to layer instances
+    layer_names = ["DoubleSide", "DarkBack", "Opacity", "Transparent", "Mortal", "Phong", "EnvMap", "NeedVC", "Dark"]
+    layer_map = {name: layers.get(name) for name in layer_names}
+
+    # Check if all layers are present
+    if any(layer is None for layer in layer_map.values()):
+        return None
+
+    # Collect properties for the first selected face
+    selected_faces = [face for face in bm.faces if face.select]
+    if not selected_faces:
+        return None
+
+    face = selected_faces[0]
+    return {name: bool(face[layer_map[name]]) for name in layer_names}
 
 class FacePropertiesPanel(bpy.types.Panel):
     bl_label = "Carnivores Flags"
@@ -167,30 +167,29 @@ class FacePropertiesPanel(bpy.types.Panel):
 
             col = layout.column()
             if props:
-                col.prop(context.scene, "face_double_side", text="Double Side", toggle=True, icon='CHECKBOX_HLT' if props["DoubleSide"] else 'CHECKBOX_DEHLT')
-                col.prop(context.scene, "face_dark_back", text="Dark Back", toggle=True, icon='CHECKBOX_HLT' if props["DarkBack"] else 'CHECKBOX_DEHLT')
-                col.prop(context.scene, "face_opacity", text="Opacity", toggle=True, icon='CHECKBOX_HLT' if props["Opacity"] else 'CHECKBOX_DEHLT')
-                col.prop(context.scene, "face_transparent", text="Transparent", toggle=True, icon='CHECKBOX_HLT' if props["Transparent"] else 'CHECKBOX_DEHLT')
-                col.prop(context.scene, "face_mortal", text="Mortal", toggle=True, icon='CHECKBOX_HLT' if props["Mortal"] else 'CHECKBOX_DEHLT')
-                col.prop(context.scene, "face_phong", text="Phong", toggle=True, icon='CHECKBOX_HLT' if props["Phong"] else 'CHECKBOX_DEHLT')
-                col.prop(context.scene, "face_env_map", text="Env Map", toggle=True, icon='CHECKBOX_HLT' if props["EnvMap"] else 'CHECKBOX_DEHLT')
-                col.prop(context.scene, "face_need_vc", text="Need VC", toggle=True, icon='CHECKBOX_HLT' if props["NeedVC"] else 'CHECKBOX_DEHLT')
-                col.prop(context.scene, "face_dark", text="Dark", toggle=True, icon='CHECKBOX_HLT' if props["Dark"] else 'CHECKBOX_DEHLT')
+                col.prop(obj.data, "face_double_side", text="Double Side", toggle=True, icon='CHECKBOX_HLT' if props["DoubleSide"] else 'CHECKBOX_DEHLT')
+                col.prop(obj.data, "face_dark_back", text="Dark Back", toggle=True, icon='CHECKBOX_HLT' if props["DarkBack"] else 'CHECKBOX_DEHLT')
+                col.prop(obj.data, "face_opacity", text="Opacity", toggle=True, icon='CHECKBOX_HLT' if props["Opacity"] else 'CHECKBOX_DEHLT')
+                col.prop(obj.data, "face_transparent", text="Transparent", toggle=True, icon='CHECKBOX_HLT' if props["Transparent"] else 'CHECKBOX_DEHLT')
+                col.prop(obj.data, "face_mortal", text="Mortal", toggle=True, icon='CHECKBOX_HLT' if props["Mortal"] else 'CHECKBOX_DEHLT')
+                col.prop(obj.data, "face_phong", text="Phong", toggle=True, icon='CHECKBOX_HLT' if props["Phong"] else 'CHECKBOX_DEHLT')
+                col.prop(obj.data, "face_env_map", text="Env Map", toggle=True, icon='CHECKBOX_HLT' if props["EnvMap"] else 'CHECKBOX_DEHLT')
+                col.prop(obj.data, "face_need_vc", text="Need VC", toggle=True, icon='CHECKBOX_HLT' if props["NeedVC"] else 'CHECKBOX_DEHLT')
+                col.prop(obj.data, "face_dark", text="Dark", toggle=True, icon='CHECKBOX_HLT' if props["Dark"] else 'CHECKBOX_DEHLT')
             else:
-                col.prop(context.scene, "face_double_side")
-                col.prop(context.scene, "face_dark_back")
-                col.prop(context.scene, "face_opacity")
-                col.prop(context.scene, "face_transparent")
-                col.prop(context.scene, "face_mortal")
-                col.prop(context.scene, "face_phong")
-                col.prop(context.scene, "face_env_map")
-                col.prop(context.scene, "face_need_vc")
-                col.prop(context.scene, "face_dark")
+                col.prop(obj.data, "face_double_side")
+                col.prop(obj.data, "face_dark_back")
+                col.prop(obj.data, "face_opacity")
+                col.prop(obj.data, "face_transparent")
+                col.prop(obj.data, "face_mortal")
+                col.prop(obj.data, "face_phong")
+                col.prop(obj.data, "face_env_map")
+                col.prop(obj.data, "face_need_vc")
+                col.prop(obj.data, "face_dark")
 
             row = layout.row()
             row.operator("mesh.apply_face_properties", text="Apply to Selected Faces")
 
-# Operator to apply custom properties
 class ApplyFaceProperties(bpy.types.Operator):
     bl_idname = "mesh.apply_face_properties"
     bl_label = "Apply Face Properties"
@@ -198,15 +197,15 @@ class ApplyFaceProperties(bpy.types.Operator):
     def execute(self, context):
         set_custom_properties(
             context,
-            context.scene.face_double_side,
-            context.scene.face_dark_back,
-            context.scene.face_opacity,
-            context.scene.face_transparent,
-            context.scene.face_mortal,
-            context.scene.face_phong,
-            context.scene.face_env_map,
-            context.scene.face_need_vc,
-            context.scene.face_dark
+            context.object.data.face_double_side,
+            context.object.data.face_dark_back,
+            context.object.data.face_opacity,
+            context.object.data.face_transparent,
+            context.object.data.face_mortal,
+            context.object.data.face_phong,
+            context.object.data.face_env_map,
+            context.object.data.face_need_vc,
+            context.object.data.face_dark
         )
         return {'FINISHED'}
         
@@ -240,19 +239,19 @@ def get_flags(bm, face_index, layers):
     return flags
 
 def prefetch_layers(bm):
-    layers = {
-        'double_side_layer': bm.faces.layers.int.get("DoubleSide"),
-        'dark_back_layer': bm.faces.layers.int.get("DarkBack"),
-        'opacity_layer': bm.faces.layers.int.get("Opacity"),
-        'transparent_layer': bm.faces.layers.int.get("Transparent"),
-        'mortal_layer': bm.faces.layers.int.get("Mortal"),
-        'phong_layer': bm.faces.layers.int.get("Phong"),
-        'env_map_layer': bm.faces.layers.int.get("EnvMap"),
-        'need_vc_layer': bm.faces.layers.int.get("NeedVC"),
-        'dark_layer': bm.faces.layers.int.get("Dark")
+    layers = bm.faces.layers.int
+    layer_dict = {
+        'double_side_layer': layers.get("DoubleSide"),
+        'dark_back_layer': layers.get("DarkBack"),
+        'opacity_layer': layers.get("Opacity"),
+        'transparent_layer': layers.get("Transparent"),
+        'mortal_layer': layers.get("Mortal"),
+        'phong_layer': layers.get("Phong"),
+        'env_map_layer': layers.get("EnvMap"),
+        'need_vc_layer': layers.get("NeedVC"),
+        'dark_layer': layers.get("Dark")
     }
-    return layers
-
+    return layer_dict
 
 def get_image_from_material(obj):
     """Retrieve the image from the first material of the active object."""
@@ -261,23 +260,24 @@ def get_image_from_material(obj):
         return None
     
     material = obj.data.materials[0]
-
+    
     if not material.use_nodes:
         print("Material does not use nodes.")
         return None
 
+    # Iterate through nodes to find an image texture node
     for node in material.node_tree.nodes:
         if node.type == 'TEX_IMAGE':
-            image = node.image
-            if image:
-                print(f"Found image: {image.name}")
-                return image
+            if node.image:
+                print(f"Found image: {node.image.name}")
+                return node.image
             else:
                 print("No image found in the Image Texture node.")
                 return None
 
     print("No Image Texture node found in the material.")
     return None
+
 
 def convert_image_to_A1R5G5B5(image):
     """Convert the image to A1 R5 G5 B5 format and return the raw size in bytes."""
@@ -288,153 +288,140 @@ def convert_image_to_A1R5G5B5(image):
     width, height = image.size
     pixels = np.array(image.pixels[:], dtype=np.float32).reshape((height, width, 4))
 
-    # Convert pixels from RGBA to A1 R5 G5 B5
-    a1_r5_g5_b5_pixels = np.zeros((height, width), dtype=np.uint16)
-    for y in range(height):
-        for x in range(width):
-            r = int(round(pixels[y, x, 0] * 31))  # Scale to 5-bit (0-31) with rounding
-            g = int(round(pixels[y, x, 1] * 31))  # Scale to 5-bit (0-31) with rounding
-            b = int(round(pixels[y, x, 2] * 31))  # Scale to 5-bit (0-31) with rounding
-            a = int(round(pixels[y, x, 3] * 0))  # Scale to 1-bit (0 or 1) with rounding
-            a1_r5_g5_b5_pixels[y, x] = (a << 15) | (r << 10) | (g << 5) | b
+    # Convert RGBA to A1 R5 G5 B5 using NumPy vectorized operations
+    r = np.clip(np.round(pixels[:, :, 0] * 31), 0, 31).astype(np.uint16)
+    g = np.clip(np.round(pixels[:, :, 1] * 31), 0, 31).astype(np.uint16)
+    b = np.clip(np.round(pixels[:, :, 2] * 31), 0, 31).astype(np.uint16)
+    a = np.clip(np.round(pixels[:, :, 3] * 0), 0, 1).astype(np.uint16)  # Assume alpha is 0 or 1
+
+    a1_r5_g5_b5_pixels = (a << 15) | (r << 10) | (g << 5) | b
 
     # Calculate the image size in bytes
     size_in_bytes = width * height * 2
 
-    print(f"Converted image size in bytes: {size_in_bytes}")
     return a1_r5_g5_b5_pixels, size_in_bytes
 
-
 def prepare_export(context, operator):
-    # Exit edit mode before exporting, so current object states are exported properly.
-    if bpy.ops.object.mode_set.poll():
+    # Ensure we are in object mode
+    if bpy.context.object.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
 
-    # Determine object to export
+    # Determine the object to export
     obj = context.active_object
-    if obj != None:
-        if obj.type != 'MESH':
-            # If an armature was selected, find corresponding mesh
-            if obj.type == 'ARMATURE':
-                for o in obj.children:
-                    if o.type == 'MESH':
-                        obj = o
-                        break
-                # If we didn't find a mesh, bail out
-                if obj.type != 'MESH':
-                    obj = None
-            else:
-                # neither MESH or ARMATURE, bail out
-                obj = None
 
-    # Validate selected mesh, report errors if not okay
-    if obj != None:
-        mesh = obj.to_mesh()
-        if mesh.uv_layers.active == None:
-            operator.report({'ERROR'}, 'No UV layer found on model')
-            obj.to_mesh_clear()
-            return None
-
-        bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.quads_convert_to_tris(quad_method='FIXED', ngon_method='CLIP')
-        bpy.ops.object.mode_set(mode='OBJECT')
-        
-        obj.to_mesh_clear()
-    else:
+    if obj is None:
         operator.report({'ERROR'}, 'No model selected')
         return None
 
+    if obj.type == 'ARMATURE':
+        # If it's an armature, find the first mesh child
+        mesh_obj = next((child for child in obj.children if child.type == 'MESH'), None)
+        if mesh_obj is not None:
+            obj = mesh_obj
+        else:
+            operator.report({'ERROR'}, 'No mesh found in the armature')
+            return None
+    elif obj.type != 'MESH':
+        operator.report({'ERROR'}, 'Selected object is not a mesh')
+        return None
+
+    # Validate the selected mesh
+    mesh = obj.to_mesh()
+    if mesh is None or not mesh.uv_layers.active:
+        operator.report({'ERROR'}, 'No UV layer found on the model')
+        obj.to_mesh_clear()
+        return None
+
+    obj.to_mesh_clear()  # Clean up the mesh object to free memory
     return obj
   
 @time_it
 def export_3df(context, filepath, obj, mat):
+    # Get the evaluated object and its mesh
     depsgraph = context.evaluated_depsgraph_get()
-    
-    obj_matrix = obj.matrix_world
     obj_for_convert = obj.evaluated_get(depsgraph)
     mesh = obj_for_convert.to_mesh()
 
-    # Apply the transformation matrix
-    mesh.transform(mat @ obj_matrix)
+    # Apply transformation matrix
+    mesh.transform(mat @ obj.matrix_world)
 
-    # Get UV layer
+    # Get UV layer and image
     uv_layer = mesh.uv_layers.active.data
-
-    # Get image from material and convert
     image = get_image_from_material(obj)
     a1_r5_g5_b5_pixels, image_size = convert_image_to_A1R5G5B5(image)
-
     image_height = image.size[1] if image else 256
 
+    # Prepare to write data to file
     with open(filepath, 'wb') as f:
-        # Write Header
-        f.write(struct.pack("<LLLL", len(mesh.vertices), len(mesh.polygons), 1, image_size)) # bones, texturesize
+        num_verts = len(mesh.vertices)
+        num_faces = len(mesh.polygons)
 
-        # Create a bmesh and prefetch custom layers
+        # Write Header
+        f.write(struct.pack("<LLLL", num_verts, num_faces, 1, image_size))  # bones, texturesize
+
+        # Create BMesh and prefetch layers
         bm = bmesh.new()
         bm.from_mesh(mesh)
         bm.faces.ensure_lookup_table()
         layers = prefetch_layers(bm)
 
-        # Write faces
-        face_count = 0
+        # Collect face data
+        face_data = bytearray()
+        image_scale = 256 * image_height
+
+        # Prepare vertex indices once
+        vertex_indices = [loop.vertex_index for loop in mesh.loops]
+
         for poly in mesh.polygons:
-            # Triangulation should have already split this into triangles
             start = poly.loop_start
             count = poly.loop_total
 
-            # Only handle triangles, which should be the case now
-            if count == 3:
-                v1 = start
-                v2 = start + 1
-                v3 = start + 2
+            # Cache uv_layer access
+            uv_data = [uv_layer[i].uv for i in range(start, start + count)]
 
-                uv1_x = round(uv_layer[v1].uv.x * 256)
-                uv1_y = round(uv_layer[v1].uv.y * image_height)
-                uv2_x = round(uv_layer[v2].uv.x * 256)
-                uv2_y = round(uv_layer[v2].uv.y * image_height)
-                uv3_x = round(uv_layer[v3].uv.x * 256)
-                uv3_y = round(uv_layer[v3].uv.y * image_height)
+            for j in range(1, count - 1):
+                v1, v2, v3 = start, start + j, start + j + 1
+                uv1, uv2, uv3 = uv_data[v1 - start], uv_data[v2 - start], uv_data[v3 - start]
 
-                f.write(
-                    struct.pack("<LLLLLLLLLHHLLLxxxxxxxxxxxx",
-                    mesh.loops[v1].vertex_index,
-                    mesh.loops[v2].vertex_index,
-                    mesh.loops[v3].vertex_index,
-                    uv1_x,
-                    uv2_x,
-                    uv3_x,
-                    uv1_y,
-                    uv2_y,
-                    uv3_y,
-                    get_flags(bm, poly.index, layers), # use optimized get_flags
-                    0, # dmask
-                    0, # distant
-                    0, # next
-                    0, # group
-                    )
-                )
-                face_count += 1
+                uv1_x, uv1_y = round(uv1.x * 256), round(uv1.y * image_height)
+                uv2_x, uv2_y = round(uv2.x * 256), round(uv2.y * image_height)
+                uv3_x, uv3_y = round(uv3.x * 256), round(uv3.y * image_height)
 
-        # Free the bmesh after use
-        bm.free()
+                face_data.extend(struct.pack(
+                    "<LLLLLLLLLHHLLLxxxxxxxxxxxx",
+                    vertex_indices[v1],
+                    vertex_indices[v2],
+                    vertex_indices[v3],
+                    uv1_x, uv2_x, uv3_x,
+                    uv1_y, uv2_y, uv3_y,
+                    get_flags(bm, poly.index, layers),  # optimized get_flags
+                    0, 0, 0, 0  # dmask, distant, next, group
+                ))
+
+        # Write face data to file
+        f.write(face_data)
 
         # Write Vertices
+        vertex_data = bytearray()
         for v in mesh.vertices:
-            f.write(struct.pack("<fffHH", v.co.x, v.co.y, v.co.z, 0, 0)) # bone and hide
+            vertex_data.extend(struct.pack("<fffHH", v.co.x, v.co.y, v.co.z, 0, 0))
+        f.write(vertex_data)
 
         # Write default bone
-        f.write(struct.pack("<32sfffhH", b'default', 0, 0, 0, -1, 0)) # x,y,z, parent, hidden
+        f.write(struct.pack("<32sfffhH", b'default', 0, 0, 0, -1, 0))
 
         # Write texture data if available
         if a1_r5_g5_b5_pixels is not None:
             f.write(a1_r5_g5_b5_pixels.tobytes())
 
-        # Optionally fix up face count in header
-        if face_count != len(mesh.polygons):
+        # Fix face count in header if needed
+        expected_face_data_size = num_faces * struct.calcsize("<LLLLLLLLLHHLLLxxxxxxxxxxxx")
+        if len(face_data) != expected_face_data_size:
             f.seek(4)
-            f.write(struct.pack("<L", face_count))
+            f.write(struct.pack("<L", len(face_data) // struct.calcsize("<LLLLLLLLLHHLLLxxxxxxxxxxxx")))
+
+    # Free BMesh memory
+    bm.free()
 
     return {'FINISHED'}
     
@@ -499,7 +486,7 @@ from bpy.props import StringProperty, FloatProperty
 from bpy.types import Operator
 from mathutils import Matrix, Vector
 
-@orientation_helper(axis_forward='-Z', axis_up='Y')
+@orientation_helper(axis_forward='Z', axis_up='Y')
 class ExportVTL(Operator, ExportHelper):
     """Export classic Carnivores VTL animation format"""
     bl_idname = "export_vtl.some_data"
@@ -540,7 +527,7 @@ class ExportVTL(Operator, ExportHelper):
         return export_vtl(context, self.filepath, obj, 1, global_matrix)
 
 
-@orientation_helper(axis_forward='-Z', axis_up='Y')
+@orientation_helper(axis_forward='Z', axis_up='Y')
 class Export3DF(Operator, ExportHelper):
     """Export classic Carnivores 3DF model format"""
     bl_idname = "export_3df.some_data"
@@ -561,21 +548,19 @@ class Export3DF(Operator, ExportHelper):
     global_scale: FloatProperty(
         name="Scale",
         min=0.01, max=1000.0,
-        default=1.0,
+        default=100.0,
     )
-
     def execute(self, context):
         obj = prepare_export(context, self)
         if obj == None:
             return {'CANCELLED'}
 
-        global_matrix = (
-            Matrix.Scale(self.global_scale, 4) @
-            axis_conversion(
-                to_forward=self.axis_forward,
-                to_up=self.axis_up,
-            ).to_4x4()
-        )
+        scale_matrix = Matrix.Scale(self.global_scale, 4)
+        axis_matrix = axis_conversion(
+            to_forward=self.axis_forward,
+            to_up=self.axis_up
+        ).to_4x4()
+        global_matrix = scale_matrix @ axis_matrix
 
         return export_3df(context, self.filepath, obj, global_matrix)
 
@@ -879,7 +864,7 @@ class Import3DF(Operator, ImportHelper):
     global_scale: FloatProperty(
         name="Scale",
         min=0.01, max=1000.0,
-        default=1.0,
+        default=0.01,
     )
 
     def execute(self, context):
