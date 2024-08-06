@@ -17,6 +17,16 @@ Simply go to Edit/Preferences/Addons, click Install, and select `io_carnivores.p
 
 Follow the install instructions, but make sure to disable/enable the addon to make sure the newer version is active.
 
+## Flagging Faces
+
+First select the flags you wanna apply to selected faces (in edit mode), the selected options will turn blue, then hit the apply to selected faces button. 
+After if you select those faces, you can see which face flags were applied to it with a little checkmark icon. 
+To undo face flags, deselect the options (from blue to grey) and again hit the apply to selected faces button.
+
+## Exporting Textures
+
+Simply just export any blender object with a image texture node attached to it and loaded with a texture.
+
 ## Importing 3DF/CAR
 
 Simply go to File/Import/3DF/CAR, and select the file you wish to import. Import has the following features:
