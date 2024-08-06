@@ -2,7 +2,7 @@
 
 This addon is supports exporting Blender models and animations into 3DF / VTL files, and importing CAR/3DF files too.
 
-3DF export simply exports the basic geometry (vertices,faces,active uvlayer) into the 3DF format. Material export is currently not supported.
+3DF export simply exports the basic geometry (vertices,faces,active uvlayer) into the 3DF format. Material export is now supported, as well as face flag export too (working on face flag import next).
 VTL export basically plays the active scene animation, and captures the vertices of the mesh for every frame in the animation, and writes that to VTL.
 
 These features allow you to do all your modelling/rigging/animating from Blender instead of using the 20+ year old tools that were released with Carnivores.
@@ -17,14 +17,6 @@ Simply go to Edit/Preferences/Addons, click Install, and select `io_carnivores.p
 
 Follow the install instructions, but make sure to disable/enable the addon to make sure the newer version is active.
 
-## Flagging Faces
-
-First select the flags you wanna apply to selected faces (in edit mode), the selected options will turn blue, then hit the apply to selected faces button. After if you select those faces, you can see which face flags were applied to it with a little checkmark icon. To undo face flags, deselect the options (from blue to grey) and again hit the apply to selected faces button.
-																							   
-## Exporting Textures
-
-Simply just export any blender object with a image texture node attached to it and loaded with a texture.
-
 ## Importing 3DF/CAR
 
 Simply go to File/Import/3DF/CAR, and select the file you wish to import. Import has the following features:
@@ -36,8 +28,8 @@ Please note that import is a new feature, and still beta. any feedback on bugs, 
 
 ## Exporting 3DF
 
-In any Blender document, select the mesh you wish to export as 3DF model, and select File/Export/3DF. Specify the file to be written and any configuration options.
-Since 3DF uses integer UV coordinates (matching with the size of the texture), with a maximum texture size of 256x256, the script currently generates UVs that assume the use of a 256x256 texture.
+In any Blender document, select the mesh you wish to export as 3DF model, and select File/Export/3DF. Specify the file to be written. The default configuration is now made to be seamless, so you don't have to set anything.
+UVs need to be 256 pixels wide, since that is what .3df files are expecting. The height resolution can be anything under 256 pixel (256 is the maximum value in both width and height).
 
 ## Exporting VLT
 
@@ -47,6 +39,5 @@ In any Blender document, make sure you have the animation you wish to export act
 
 This is my first Blender addon, so please be gentle. Known issues:
 
-* UV coordinate conversion assumes 256x256 texture.
 * Due to the way VTL stores vertices (as signed 16-bit integers, by doing `float * 16`) very small objects or very large ones will likely cause issues.
 * Likely much more ;)
