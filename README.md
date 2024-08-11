@@ -22,6 +22,13 @@ Follow the install instructions, but make sure to disable/enable the addon to ma
 First select the flags you wanna apply to selected faces (in edit mode), the selected options will turn blue, then hit the apply to selected faces button. 
 After if you select those faces, you can see which face flags were applied to it with a little checkmark icon. 
 To undo face flags, deselect the options (from blue to grey) and again hit the apply to selected faces button.
+Now there is also an option to select faces by highlighting face flags you want to look for and hit the Select Highlighted Flags option. This will select all the faces that has the flags you selected assigned.
+
+## Flag Visualization
+
+When you assign face flags to the model they also get a vertex color assigned to them. This will help visualizing the different face flags on the model. You can switch to vertex paint mode and select the FaceColors layer after you assigned face flags to the model.
+It will show each flags with a different color and combine colors on faces where multiple flags are defined.
+Also there is now a Assign Vertex Color To All Faces button, which is useful if you import models into blender. This will assign the proper color to models that already have face flags on them for a quick setup.
 
 ## Exporting Textures
 
