@@ -3,13 +3,13 @@ import bpy
 import struct
 import bmesh
 import numpy as np
-import timeit
-import functools
+#import timeit
+#import functools
 
 bl_info = {
     "name": "Carnivores Model/Animation Import/Export (3DF,VTL)",
-    "author": "Ithamar R. Adema, Strider",
-    "version": (1, 4, 5),
+    "author": "Strider, Ithamar R. Adema",
+    "version": (1, 6, 0),
     "blender": (2, 82, 0),
     "description": "Import/Export plugin for classic Carnivores formats 3DF (base model), VTL (animations)",
     "category": "Import-Export",
@@ -20,7 +20,7 @@ bl_info = {
 # -----------------------------------------------------------------------------
 
 # Create a timeit decorator to measure performance of functions
-def time_it(func):
+"""def time_it(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         def timed_function():
@@ -33,7 +33,32 @@ def time_it(func):
         # Call the original function and return its result
         return func(*args, **kwargs)
     
-    return wrapper
+    return wrapper"""
+
+def calculate_blend_color(mesh):
+    # Default color (white)
+    color = (1, 1, 1, 1)
+
+    # Define the conditions and corresponding colors
+    conditions = [
+        (mesh.face_double_side, (1, 0, 1, 1)),     # Red
+        (mesh.face_dark_back, (0, 1, 0, 1)),       # Green
+        (mesh.face_opacity, (0, 0, 1, 1)),         # Blue
+        (mesh.face_transparent, (1, 1, 0, 1)),     # Yellow
+        (mesh.face_mortal, (1, 0, 0, 1)),          # Magenta
+        (mesh.face_phong, (0, 1, 1, 1)),           # Cyan
+        (mesh.face_env_map, (0.5, 0.5, 0.5, 1)),   # Gray
+        (mesh.face_need_vc, (1, 0.5, 0, 1)),       # Orange
+        (mesh.face_dark, (0, 0, 0, 1))             # Black
+    ]
+
+    # Update color based on conditions
+    for condition, new_color in conditions:
+        if condition:
+            color = tuple((a + b) / 2 for a, b in zip(color, new_color))
+
+    return color
+
     
 def create_bool_properties(properties):
     for prop_name, prop_label in properties:
@@ -72,12 +97,14 @@ def remove_custom_properties():
     delete_bool_properties(properties)
 
 def ensure_custom_layers(bm):
+ 
     layers = bm.faces.layers.int
     required_layers = ["DoubleSide", "DarkBack", "Opacity", "Transparent", "Mortal", "Phong", "EnvMap", "NeedVC", "Dark"]
     for name in required_layers:
         if name not in layers:
             layers.new(name)
     return layers
+
 
 def set_custom_properties(context, double_side, dark_back, opacity, transparent, mortal, phong, env_map, need_vc, dark):
     obj = context.active_object
@@ -109,12 +136,20 @@ def set_custom_properties(context, double_side, dark_back, opacity, transparent,
         "NeedVC": int(need_vc),
         "Dark": int(dark),
     }
+    
+    color_layer = bm.loops.layers.color.get("FlagColors")
+    if not color_layer:
+        color_layer = bm.loops.layers.color.new("FlagColors")
 
     # Apply properties to selected faces
     for face in bm.faces:
         if face.select:
             for name in layer_names:
                 face[layer_map[name]] = properties[name]
+            blended_color = calculate_blend_color(obj.data)
+
+            for loop in face.loops:
+                loop[color_layer] = blended_color
 
     # Update the BMesh to reflect changes in the mesh
     bmesh.update_edit_mesh(obj.data)
@@ -189,7 +224,106 @@ class FacePropertiesPanel(bpy.types.Panel):
 
             row = layout.row()
             row.operator("mesh.apply_face_properties", text="Apply to Selected Faces")
+            row.operator("mesh.select_highlighted_faces", text="Select Highlighted Faces")
+            row = layout.row()
+            row.operator("mesh.assign_vertex_colors_to_all_faces", text="Assign Vertex Colors to All Faces")
 
+class AssignVertexColorsToAllFaces(bpy.types.Operator):
+    bl_idname = "mesh.assign_vertex_colors_to_all_faces"
+    bl_label = "Assign Vertex Colors to All Faces"
+
+    def execute(self, context):
+        obj = context.active_object
+
+        if obj.mode != 'EDIT' or obj.type != 'MESH':
+            self.report({'WARNING'}, "No mesh selected or not in edit mode")
+            return {'CANCELLED'}
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        layers = ensure_custom_layers(bm)
+
+        # Create or get the vertex color layer
+        color_layer = bm.loops.layers.color.get("FlagColors")
+        if not color_layer:
+            color_layer = bm.loops.layers.color.new("FlagColors")
+
+        # Iterate over all faces and assign the corresponding color
+        for face in bm.faces:
+            # Collect the properties of the face to calculate the color
+            mesh = obj.data
+            mesh.face_double_side = bool(face[layers["DoubleSide"]])
+            mesh.face_dark_back = bool(face[layers["DarkBack"]])
+            mesh.face_opacity = bool(face[layers["Opacity"]])
+            mesh.face_transparent = bool(face[layers["Transparent"]])
+            mesh.face_mortal = bool(face[layers["Mortal"]])
+            mesh.face_phong = bool(face[layers["Phong"]])
+            mesh.face_env_map = bool(face[layers["EnvMap"]])
+            mesh.face_need_vc = bool(face[layers["NeedVC"]])
+            mesh.face_dark = bool(face[layers["Dark"]])
+
+            # Calculate the blended color based on these properties
+            blended_color = calculate_blend_color(mesh)
+
+            # Assign the color to each vertex loop in the face
+            for loop in face.loops:
+                loop[color_layer] = blended_color
+
+        # Update the mesh
+        bmesh.update_edit_mesh(obj.data)
+
+        return {'FINISHED'}
+
+class SelectHighlightedFaces(bpy.types.Operator):
+    bl_idname = "mesh.select_highlighted_faces"
+    bl_label = "Select Highlighted Faces"
+
+    def execute(self, context):
+        obj = context.active_object
+
+        if obj.mode != 'EDIT' or obj.type != 'MESH':
+            self.report({'WARNING'}, "No mesh selected or not in edit mode")
+            return {'CANCELLED'}
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        layers = ensure_custom_layers(bm)
+
+        # Get the current values from the UI panel (these are the highlighted values)
+        selected_properties = {
+            "DoubleSide": context.object.data.face_double_side,
+            "DarkBack": context.object.data.face_dark_back,
+            "Opacity": context.object.data.face_opacity,
+            "Transparent": context.object.data.face_transparent,
+            "Mortal": context.object.data.face_mortal,
+            "Phong": context.object.data.face_phong,
+            "EnvMap": context.object.data.face_env_map,
+            "NeedVC": context.object.data.face_need_vc,
+            "Dark": context.object.data.face_dark,
+        }
+
+        # Deselect all faces first
+        for face in bm.faces:
+            face.select = False
+
+        # Select faces that exactly match the highlighted properties
+        for face in bm.faces:
+            match = True
+            for prop_name, highlighted in selected_properties.items():
+                layer = layers.get(prop_name)
+                if layer is not None:
+                    if highlighted and face[layer] != 1:
+                        match = False
+                        break
+                    elif not highlighted and face[layer] == 1:
+                        match = False
+                        break
+            if match:
+                face.select = True
+
+        # Update the mesh
+        bmesh.update_edit_mesh(obj.data)
+
+        return {'FINISHED'}
+        
 class ApplyFaceProperties(bpy.types.Operator):
     bl_idname = "mesh.apply_face_properties"
     bl_label = "Apply Face Properties"
@@ -335,7 +469,7 @@ def prepare_export(context, operator):
     obj.to_mesh_clear()  # Clean up the mesh object to free memory
     return obj
   
-@time_it
+#@time_it
 def export_3df(context, filepath, obj, mat):
     # Get the evaluated object and its mesh
     depsgraph = context.evaluated_depsgraph_get()
@@ -652,11 +786,16 @@ def import_car(data, matrix):
 
     mfaces = []
     muvs = []
+    custom_flags = []
     for f in faces:
         mfaces.append([ f[0], f[1], f[2] ])
         muvs.append([f[3] / 256.0, f[6] / float(height)])
         muvs.append([f[4] / 256.0, f[7] / float(height)])
         muvs.append([f[5] / 256.0, f[8] / float(height)])
+        
+        # Extract custom properties (flags) from the first uint16 (H)
+        flags = f[9]  # Assuming the first H is the flags field
+        custom_flags.append(flags)
 
     mesh_data = bpy.data.meshes.new(name + '_Mesh')
     mesh_data.from_pydata(mverts, [], mfaces)
@@ -664,6 +803,8 @@ def import_car(data, matrix):
     mesh_data.transform(matrix)
 
     obj = bpy.data.objects.new(name, mesh_data)
+
+    add_custom_properties()
 
     # define vertex groups
     for vgi in range(len(vertgroups)):
@@ -732,8 +873,26 @@ def import_car(data, matrix):
     collection = view_layer.active_layer_collection.collection
     collection.objects.link(obj)
 
-    return {'FINISHED'}
+    bm = bmesh.new()
+    bm.from_mesh(mesh_data)
+    layers = ensure_custom_layers(bm)  # Ensure custom face layers exist
 
+    for i, face in enumerate(bm.faces):
+        flags = custom_flags[i]
+        face[layers["DoubleSide"]] = (flags & (1 << 0)) >> 0
+        face[layers["DarkBack"]] = (flags & (1 << 1)) >> 1
+        face[layers["Opacity"]] = (flags & (1 << 2)) >> 2
+        face[layers["Transparent"]] = (flags & (1 << 3)) >> 3
+        face[layers["Mortal"]] = (flags & (1 << 4)) >> 4
+        face[layers["Phong"]] = (flags & (1 << 5)) >> 5
+        face[layers["EnvMap"]] = (flags & (1 << 6)) >> 6
+        face[layers["NeedVC"]] = (flags & (1 << 7)) >> 7
+        face[layers["Dark"]] = (flags & (1 << 8)) >> 8
+
+    bm.to_mesh(mesh_data)
+    bm.free()
+
+    return {'FINISHED'}
 
 def import_3df(data, name, mat):
     vert_count, face_count, bone_count, texture_size = struct.unpack_from('<IIII', data, 0)
@@ -761,12 +920,18 @@ def import_3df(data, name, mat):
 
     mfaces = []
     muvs = []
+    custom_flags = []
+
     for f in faces:
         mfaces.append([ f[0], f[1], f[2] ])
         # Ensure consistent UV normalization
         muvs.append([f[3] / 256.0, f[6] / float(height)])
         muvs.append([f[4] / 256.0, f[7] / float(height)])
         muvs.append([f[5] / 256.0, f[8] / float(height)])
+        
+        # Extract custom properties (flags) from the first uint16 (H)
+        flags = f[9]  # Assuming the first H is the flags field
+        custom_flags.append(flags)
 
     mesh_data = bpy.data.meshes.new(name + '_Mesh')
     mesh_data.from_pydata(mverts, [], mfaces)
@@ -774,6 +939,9 @@ def import_3df(data, name, mat):
     mesh_data.transform(mat)
 
     obj = bpy.data.objects.new(name, mesh_data)
+
+    # Ensure custom properties exist
+    add_custom_properties()
 
     # If we have bones...
     if len(bones) > 0:
@@ -821,7 +989,7 @@ def import_3df(data, name, mat):
         uv.data[loop.index].uv = muvs[loop.index]
 
     # If we have a texture, setup material
-    if image != None:
+    if image is not None:
         mat = bpy.data.materials.new(name=name + "_Material")
         mat.use_nodes = True
         bsdf = mat.node_tree.nodes["Principled BSDF"]
@@ -833,6 +1001,26 @@ def import_3df(data, name, mat):
     view_layer = bpy.context.view_layer
     collection = view_layer.active_layer_collection.collection
     collection.objects.link(obj)
+
+    # Apply custom properties to faces
+    bm = bmesh.new()
+    bm.from_mesh(mesh_data)
+    layers = ensure_custom_layers(bm)  # Ensure custom face layers exist
+
+    for i, face in enumerate(bm.faces):
+        flags = custom_flags[i]
+        face[layers["DoubleSide"]] = (flags & (1 << 0)) >> 0
+        face[layers["DarkBack"]] = (flags & (1 << 1)) >> 1
+        face[layers["Opacity"]] = (flags & (1 << 2)) >> 2
+        face[layers["Transparent"]] = (flags & (1 << 3)) >> 3
+        face[layers["Mortal"]] = (flags & (1 << 4)) >> 4
+        face[layers["Phong"]] = (flags & (1 << 5)) >> 5
+        face[layers["EnvMap"]] = (flags & (1 << 6)) >> 6
+        face[layers["NeedVC"]] = (flags & (1 << 7)) >> 7
+        face[layers["Dark"]] = (flags & (1 << 8)) >> 8
+
+    bm.to_mesh(mesh_data)
+    bm.free()
 
     return {'FINISHED'}
 
@@ -885,6 +1073,8 @@ def menu_func_import(self, context):
 def register():
     bpy.utils.register_class(FacePropertiesPanel)
     bpy.utils.register_class(ApplyFaceProperties)
+    bpy.utils.register_class(SelectHighlightedFaces)
+    bpy.utils.register_class(AssignVertexColorsToAllFaces)
     add_custom_properties()
     bpy.utils.register_class(Export3DF)
     bpy.utils.register_class(ExportVTL)
@@ -896,6 +1086,8 @@ def register():
 def unregister():
     bpy.utils.unregister_class(FacePropertiesPanel)
     bpy.utils.unregister_class(ApplyFaceProperties)
+    bpy.utils.unregister_class(SelectHighlightedFaces)
+    bpy.utils.unregister_class(AssignVertexColorsToAllFaces)
     remove_custom_properties()
     bpy.utils.unregister_class(Export3DF)
     bpy.utils.unregister_class(ExportVTL)
