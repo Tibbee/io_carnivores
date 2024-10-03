@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Carnivores Export Addon for Blender | io_carnivores</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Carnivores Export Addon for Blender" />
+<meta property="og:locale" content="en_US" />
+<meta name="google-site-verification" content="vV2I4_10i1jKJ-bEvMjoCDvBuHzxbjHPdawzWl29bts" />
+<meta name="description" content="Blender export script for classic Carnivores formats" />
+<meta property="og:description" content="Blender export script for classic Carnivores formats" />
+<link rel="canonical" href="https://tibbee.github.io/io_carnivores/" />
+<meta property="og:url" content="https://tibbee.github.io/io_carnivores/" />
+<meta property="og:site_name" content="io_carnivores" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Carnivores Export Addon for Blender" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","description":"Blender export script for classic Carnivores formats","headline":"Carnivores Export Addon for Blender","name":"io_carnivores","url":"https://tibbee.github.io/io_carnivores/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/io_carnivores/assets/css/style.css?v=cee988c1631dfc5996c282e955b1ff8e5d477886">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/io_carnivores/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://tibbee.github.io/io_carnivores/">io_carnivores</a></h1>
+      
+
+      <h1 id="carnivores-export-addon-for-blender">Carnivores Export Addon for Blender</h1>
+
+<p>This addon is supports exporting Blender models and animations into 3DF / VTL files, and importing CAR/3DF files too.</p>
+
+<p>3DF export simply exports the basic geometry (vertices,faces,active uvlayer) into the 3DF format. Material export is now supported, as well as face flag export too (working on face flag import next).
+VTL export basically plays the active scene animation, and captures the vertices of the mesh for every frame in the animation, and writes that to VTL.</p>
+
+<p>These features allow you to do all your modelling/rigging/animating from Blender instead of using the 20+ year old tools that were released with Carnivores.</p>
+
+<p>To create CAR files out of the 3DF and VTL files, you’ll have to use either <a href="https://game3dee.com/cmm/">CMM</a> or <a href="https://github.com/carnivores-cpe/c3dit">c3dit</a>.</p>
+
+<h2 id="install">Install</h2>
+
+<p>Simply go to Edit/Preferences/Addons, click Install, and select <code class="language-plaintext highlighter-rouge">io_carnivores.py</code>. You should see the addon in the addon list, click the checkbox in front of its name to enable, and you should be good to go.</p>
+
+<h2 id="update">Update</h2>
+
+<p>Follow the install instructions, but make sure to disable/enable the addon to make sure the newer version is active.</p>
+
+<h2 id="flagging-faces">Flagging Faces</h2>
+
+<p>First select the flags you wanna apply to selected faces (in edit mode), the selected options will turn blue, then hit the apply to selected faces button. 
+After if you select those faces, you can see which face flags were applied to it with a little checkmark icon. 
+To undo face flags, deselect the options (from blue to grey) and again hit the apply to selected faces button.
+Now there is also an option to select faces by highlighting face flags you want to look for and hit the Select Highlighted Flags option. This will select all the faces that has the flags you selected assigned.</p>
+
+<h2 id="flag-visualization">Flag Visualization</h2>
+
+<p>When you assign face flags to the model they also get a vertex color assigned to them. This will help visualizing the different face flags on the model. You can switch to vertex paint mode and select the FaceColors layer after you assigned face flags to the model.
+It will show each flags with a different color and combine colors on faces where multiple flags are defined.
+Also there is now a Assign Vertex Color To All Faces button, which is useful if you import models into blender. This will assign the proper color to models that already have face flags on them for a quick setup.</p>
+
+<h2 id="exporting-textures">Exporting Textures</h2>
+
+<p>Simply just export any blender object with a image texture node attached to it and loaded with a texture.</p>
+
+<h2 id="importing-3dfcar">Importing 3DF/CAR</h2>
+
+<p>Simply go to File/Import/3DF/CAR, and select the file you wish to import. Import has the following features:</p>
+
+<ul>
+  <li>3DF: geometry, uv mapping, texture, and rigging (bones / vertex groups).</li>
+  <li>CAR: geometry, uv mapping, texture, animations (imported as shape keys), and vertex groups. Bones are not stored in the CAR format, so unfortunately, those are missing.</li>
+</ul>
+
+<p>Please note that import is a new feature, and still beta. any feedback on bugs, or suggestions for features related to this are welcome.</p>
+
+<h2 id="exporting-3df">Exporting 3DF</h2>
+
+<p>In any Blender document, select the mesh you wish to export as 3DF model, and select File/Export/3DF. Specify the file to be written. The default configuration is now made to be seamless, so you don’t have to set anything.
+UVs need to be 256 pixels wide, since that is what .3df files are expecting. The height resolution can be anything under 256 pixel (256 is the maximum value in both width and height).</p>
+
+<h2 id="exporting-vlt">Exporting VLT</h2>
+
+<p>In any Blender document, make sure you have the animation you wish to export active in the scene, then select the mesh (or armature), go to File/Export/VTL. Specify the file to be written and any configuration options.</p>
+
+<h2 id="troubleshooting--bugs">Troubleshooting / bugs</h2>
+
+<p>This is my first Blender addon, so please be gentle. Known issues:</p>
+
+<ul>
+  <li>Due to the way VTL stores vertices (as signed 16-bit integers, by doing <code class="language-plaintext highlighter-rouge">float * 16</code>) very small objects or very large ones will likely cause issues.</li>
+  <li>Likely much more ;)</li>
+</ul>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/Tibbee/io_carnivores/edit/Texture/Flag-export/README.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>
