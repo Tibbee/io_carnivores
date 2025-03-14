@@ -11,6 +11,7 @@ To create CAR files out of the 3DF and VTL files, you'll have to use either [CMM
 
 ## Install
 
+!!!Do not install the zip package. Only install the extracted io_carnivores.py file.!!!
 Simply go to Edit/Preferences/Addons, click Install, and select `io_carnivores.py`. You should see the addon in the addon list, click the checkbox in front of its name to enable, and you should be good to go.
 
 ## Update
