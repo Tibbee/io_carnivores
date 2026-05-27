@@ -1,3 +1,11 @@
+> **⚠️ This repository has moved.**
+> The Carnivores Blender addon is now maintained at
+> **[github.com/Tibbee/CarnivoresIO](https://github.com/Tibbee/CarnivoresIO)**
+> All future updates, bug fixes, and new features will be there.
+> Please use that version going forward.
+
+---
+
 # Carnivores Export Addon for Blender
 
 This addon is supports exporting Blender models and animations into 3DF / VTL files, and importing CAR/3DF files too.
